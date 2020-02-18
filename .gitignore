@@ -1,0 +1,16 @@
+Assets
+Debug
+.vs
+irrKlang
+freeglut*
+GameConstants.*
+GameController.*
+GameWorld.*
+GraphObject.*
+irrKlang.*
+*.vcxproj
+*.user
+*.sln
+main.cpp
+SoundFx.*
+SpriteManager.*
