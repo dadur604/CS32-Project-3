@@ -62,3 +62,33 @@ void StudentWorld::cleanUp()
 StudentWorld::~StudentWorld() {
     cleanUp();
 }
+
+void StudentWorld::addActor(Actor* actor) {
+    m_actors.push_back(actor);
+}
+
+void StudentWorld::removeActor(Actor* actor) {
+    for (vector<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++) {
+        if (*it == actor) {
+            delete *it;
+            m_actors.erase(it);
+            break;
+        }
+    }
+}
+
+bool StudentWorld::getOverlapObject(const Actor* src, Actor*& object, bool (*predicate)(Actor*)) {
+    for (vector<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++) {
+        if (*it == src) continue;
+        if (!predicate(*it)) continue;
+        double otherX = (*it)->getX();
+        double otherY = (*it)->getY();
+
+        if (sqrt(pow(src->getX() - otherX, 2) + pow(src->getY() - otherY, 2)) <= SPRITE_RADIUS * 2) {
+            object = *it;
+            return true;
+        }
+    }
+
+    return false;
+}

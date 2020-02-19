@@ -25,6 +25,11 @@ public:
     virtual int move();
     virtual void cleanUp();
 
+    void addActor(Actor* actor);
+    void removeActor(Actor* actor);
+
+    bool getOverlapObject(const Actor* src, Actor*& object, bool (*predicate)(Actor*));
+
 private:
     std::vector<Actor*> m_actors;
     Socrates* m_socrates;

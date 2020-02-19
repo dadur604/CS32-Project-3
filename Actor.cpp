@@ -21,7 +21,7 @@ int Actor::Health() {
 void Actor::updateHealth(int health) {
 	m_health += health;
 	if (m_health <= 0) {
-		// on death
+		getWorld()->removeActor(this);
 	}
 }
 
@@ -33,6 +33,11 @@ void Actor::setHealth(int health) {
 	m_health = health;
 }
 
+void Actor::doSomething() {
+	if (!Alive()) return;
+	update();
+}
+
 // DIRT
 
 Dirt::Dirt(double startX, double startY, StudentWorld* world)
@@ -40,7 +45,7 @@ Dirt::Dirt(double startX, double startY, StudentWorld* world)
 	setHealth(1);
 }
 
-void Dirt::doSomething() {
+void Dirt::update() {
 	return;
 }
 
@@ -54,9 +59,7 @@ Socrates::Socrates(StudentWorld* world)
 	posAngle = 180;
 }
 
-void Socrates::doSomething() {
-	if (!Alive()) return;
-
+void Socrates::update() {
 	int key;
 	if (getWorld()->getKey(key)) {
 
@@ -67,6 +70,37 @@ void Socrates::doSomething() {
 			case KEY_PRESS_RIGHT:
 				moveAround(-5);
 				break;
+			case KEY_PRESS_SPACE:
+				spray();
+				break;
+			case KEY_PRESS_ENTER:
+				flame();
+				break;
+		}
+	}
+	else {
+		// No key pressed
+		if (m_spraysRemaining < MAX_SPRAYS) m_spraysRemaining++;
+	}
+}
+
+void Socrates::spray() {
+	if (m_spraysRemaining > 0) {
+		double x, y;
+		getPositionInThisDirection(getDirection(), 2 * SPRITE_RADIUS, x, y);
+		getWorld()->addActor(new Spray(x, y, getDirection(), getWorld()));
+		m_spraysRemaining--;
+	}
+}
+
+void Socrates::flame() {
+	if (m_flamesRemaining > 0) {
+		Direction direction = getDirection();
+		for (int i = 0; i < 16; i++) {
+			static double x, y;
+			Direction newDir = direction + i * 22;
+			getPositionInThisDirection(newDir, 2 * SPRITE_RADIUS, x, y);
+			getWorld()->addActor(new Flame(x, y, newDir, getWorld()));
 		}
 	}
 }
@@ -85,4 +119,58 @@ void Socrates::moveAround(int degrees) {
 	double lookDir = posAngle - 180;
 	if (lookDir < 0) lookDir += 360;
 	setDirection(lookDir);
+}
+
+// PROJECTILE
+
+Projectile::Projectile(double startX, double startY, Direction dir, int speed, int damage, int imageID, StudentWorld* world)
+	: Actor(imageID, startX, startY, dir, 1, 1, world) {
+	m_startX = startX;
+	m_startY = startY;
+	m_speed = speed;
+	m_damage = damage;
+}
+
+void Projectile::update() {
+	Actor* object = nullptr;
+	if (getWorld()->getOverlapObject(this, object, [](Actor* a) {return a->isDamageable();})) {
+		// do damage
+		object->updateHealth(-1 * m_damage);
+		// remove ourselves
+		getWorld()->removeActor(this);
+		return;
+	}
+
+	// move
+	moveAngle(getDirection(), m_speed);
+
+	if (isMaxDistance()) {
+		getWorld()->removeActor(this);
+	}
+}
+
+// SPRAY
+
+Spray::Spray(double startX, double startY, Direction dir, StudentWorld* world)
+	: Projectile(startX, startY, dir, SPRITE_RADIUS*2, 2, IID_SPRAY, world) {
+	setHealth(1);
+	getWorld()->playSound(SOUND_PLAYER_SPRAY);
+}
+
+bool Spray::isMaxDistance() {
+	if (sqrt(pow(getStartX() - getX(), 2) + pow(getStartY() - getY(), 2)) >= 112) return true;
+	return false;
+}
+
+// FLAME
+
+Flame::Flame(double startX, double startY, Direction dir, StudentWorld* world)
+	: Projectile(startX, startY, dir, SPRITE_RADIUS * 2, 2, IID_FLAME, world) {
+	setHealth(1);
+	getWorld()->playSound(SOUND_PLAYER_SPRAY);
+}
+
+bool Flame::isMaxDistance() {
+	if (sqrt(pow(getStartX() - getX(), 2) + pow(getStartY() - getY(), 2)) >= 32) return true;
+	return false;
 }
