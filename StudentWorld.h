@@ -4,7 +4,7 @@
 #include "GameWorld.h"
 #include "Actor.h"
 #include <string>
-#include <vector>
+#include <list>
 
 // Students:  Add code to this file, StudentWorld.cpp, Actor.h, and Actor.cpp
 
@@ -31,7 +31,7 @@ public:
     bool getOverlapObject(const Actor* src, Actor*& object, bool (*predicate)(Actor*));
 
 private:
-    std::vector<Actor*> m_actors;
+    std::list<Actor*> m_actors;
     Socrates* m_socrates;
 };
 

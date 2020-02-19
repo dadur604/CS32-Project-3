@@ -21,7 +21,7 @@ int Actor::Health() {
 void Actor::updateHealth(int health) {
 	m_health += health;
 	if (m_health <= 0) {
-		getWorld()->removeActor(this);
+		// Will be deleted by StudentWorld
 	}
 }
 
@@ -89,6 +89,7 @@ void Socrates::spray() {
 		double x, y;
 		getPositionInThisDirection(getDirection(), 2 * SPRITE_RADIUS, x, y);
 		getWorld()->addActor(new Spray(x, y, getDirection(), getWorld()));
+		getWorld()->playSound(SOUND_PLAYER_SPRAY);
 		m_spraysRemaining--;
 	}
 }
@@ -102,6 +103,8 @@ void Socrates::flame() {
 			getPositionInThisDirection(newDir, 2 * SPRITE_RADIUS, x, y);
 			getWorld()->addActor(new Flame(x, y, newDir, getWorld()));
 		}
+		getWorld()->playSound(SOUND_PLAYER_SPRAY);
+		m_flamesRemaining--;
 	}
 }
 
@@ -137,7 +140,7 @@ void Projectile::update() {
 		// do damage
 		object->updateHealth(-1 * m_damage);
 		// remove ourselves
-		getWorld()->removeActor(this);
+		setHealth(0);
 		return;
 	}
 
@@ -145,7 +148,7 @@ void Projectile::update() {
 	moveAngle(getDirection(), m_speed);
 
 	if (isMaxDistance()) {
-		getWorld()->removeActor(this);
+		setHealth(0);
 	}
 }
 
@@ -154,7 +157,6 @@ void Projectile::update() {
 Spray::Spray(double startX, double startY, Direction dir, StudentWorld* world)
 	: Projectile(startX, startY, dir, SPRITE_RADIUS*2, 2, IID_SPRAY, world) {
 	setHealth(1);
-	getWorld()->playSound(SOUND_PLAYER_SPRAY);
 }
 
 bool Spray::isMaxDistance() {
@@ -167,7 +169,6 @@ bool Spray::isMaxDistance() {
 Flame::Flame(double startX, double startY, Direction dir, StudentWorld* world)
 	: Projectile(startX, startY, dir, SPRITE_RADIUS * 2, 2, IID_FLAME, world) {
 	setHealth(1);
-	getWorld()->playSound(SOUND_PLAYER_SPRAY);
 }
 
 bool Flame::isMaxDistance() {

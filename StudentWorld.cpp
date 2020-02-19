@@ -1,4 +1,4 @@
-//#define DEBUG_DIRTS 5
+#define DEBUG_DIRTS 5
 
 #include "StudentWorld.h"
 #include "GameConstants.h"
@@ -43,9 +43,22 @@ int StudentWorld::init()
 
 int StudentWorld::move()
 {
+    auto end = m_actors.end();
     m_socrates->doSomething();
-    for (int i = 0; i < m_actors.size(); i++) {
-        m_actors[i]->doSomething();
+    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++) {
+        (*it)->doSomething();
+    }
+
+    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); ) {
+        if (!(*it)->Alive()) {
+            delete* it;
+            auto toErase = it;
+            it++;
+            m_actors.erase(toErase);
+        }
+        else {
+            it++;
+        }
     }
 
     return GWSTATUS_CONTINUE_GAME;
@@ -54,8 +67,8 @@ int StudentWorld::move()
 void StudentWorld::cleanUp()
 {
     delete m_socrates;
-    for (int i = 0; i < m_actors.size(); i++) {
-        delete m_actors[i];
+    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++) {
+        delete *it;
     }
 }
 
@@ -68,18 +81,22 @@ void StudentWorld::addActor(Actor* actor) {
 }
 
 void StudentWorld::removeActor(Actor* actor) {
-    for (vector<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++) {
+    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); ) {
         if (*it == actor) {
             delete *it;
-            m_actors.erase(it);
+            auto toErase = it;
+            it++;
+            m_actors.erase(toErase);
             break;
         }
+        it++;
     }
 }
 
 bool StudentWorld::getOverlapObject(const Actor* src, Actor*& object, bool (*predicate)(Actor*)) {
-    for (vector<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++) {
+    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++) {
         if (*it == src) continue;
+        if (!(*it)->Alive()) continue;
         if (!predicate(*it)) continue;
         double otherX = (*it)->getX();
         double otherY = (*it)->getY();
