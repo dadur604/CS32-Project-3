@@ -49,6 +49,17 @@ void Dirt::update() {
 	return;
 }
 
+// FOOD
+
+Food::Food(double startX, double startY, StudentWorld* world)
+	: Actor(IID_FOOD, startX, startY, 90, 1, 1, world) {
+	setHealth(1);
+}
+
+void Food::update() {
+	return;
+}
+
 // SOCRATES	
 
 Socrates::Socrates(StudentWorld* world)
@@ -57,6 +68,14 @@ Socrates::Socrates(StudentWorld* world)
 	m_spraysRemaining = MAX_SPRAYS;
 	m_flamesRemaining = START_FLAMES;
 	posAngle = 180;
+}
+
+void Socrates::updateHealth(int health) {
+	Actor::updateHealth(health);
+	if (Alive())
+		getWorld()->playSound(SOUND_PLAYER_HURT);
+	else
+		getWorld()->playSound(SOUND_PLAYER_DIE);
 }
 
 void Socrates::update() {
@@ -174,4 +193,18 @@ Flame::Flame(double startX, double startY, Direction dir, StudentWorld* world)
 bool Flame::isMaxDistance() {
 	if (sqrt(pow(getStartX() - getX(), 2) + pow(getStartY() - getY(), 2)) >= 32) return true;
 	return false;
+}
+
+// PIT
+
+Pit::Pit(double startX, double startY, StudentWorld* world)
+	: Actor(IID_PIT, startX, startY, 0, 1, 1, world) {
+	m_regSalmonella = 5;
+	m_aggSalmonella = 3;
+	m_ecoli = 2;
+	setHealth(1);
+}
+
+void Pit::update() {
+	return;
 }

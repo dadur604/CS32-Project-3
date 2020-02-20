@@ -16,9 +16,11 @@ public:
 
 	bool Alive();
 	int Health();
-	void updateHealth(int health);
+	virtual void updateHealth(int health);
 
 	virtual bool isDamageable() { return false; }
+	virtual bool doesBlock() { return false; }
+	virtual bool blockPlacement() { return false; }
 
 	StudentWorld* getWorld();
 
@@ -38,8 +40,19 @@ public:
 	Dirt(double startX, double startY, StudentWorld* world);
 
 	virtual bool isDamageable() { return true; }
+	virtual bool doesBlock() { return true; }
 
 	virtual void update();
+};
+
+class Food : public Actor {
+
+public:
+	Food(double startX, double startY, StudentWorld* world);
+
+	virtual void update();
+
+	virtual bool blockPlacement() { return true; }
 };
 
 class Socrates : public Actor {
@@ -50,7 +63,17 @@ public:
 
 	virtual bool isDamageable() { return true; }
 
+	virtual void updateHealth(int health);
+
 	virtual void update();
+
+	int FlamesRemaining() {
+		return m_flamesRemaining;
+	}
+
+	int SpraysRemaining() {
+		return m_spraysRemaining;
+	}
 
 private:
 	int m_flamesRemaining;
@@ -98,6 +121,20 @@ public:
 	Flame(double startX, double startY, Direction dir, StudentWorld* world);
 
 	virtual bool isMaxDistance();
+};
+
+class Pit : public Actor {
+public:
+	Pit(double startX, double startY, StudentWorld* world);
+
+	virtual bool blockPlacement() { return true; }
+
+	virtual void update();
+
+private:
+	int m_regSalmonella;
+	int m_aggSalmonella;
+	int m_ecoli;
 };
 
 #endif // ACTOR_H_

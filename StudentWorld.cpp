@@ -1,8 +1,9 @@
-#define DEBUG_DIRTS 5
+//#define DEBUG_DIRTS 5
 
 #include "StudentWorld.h"
 #include "GameConstants.h"
 #include <string>
+#include <sstream>
 using namespace std;
 
 GameWorld* createStudentWorld(string assetPath)
@@ -22,8 +23,33 @@ int StudentWorld::init()
     // Add Socrates
     m_socrates = new Socrates(this);
 
-    // Add dirts
     int level = getLevel();
+
+    struct Point {
+        int x;
+        int y;
+    };
+
+    // Add pits
+    for (int i = 0; i < level; i++) {
+        int x, y;
+        randomPointInCircle(true, x, y);
+        // we have a valid x,y!
+
+        m_actors.push_back(new Pit(x, y, this));
+    }
+
+    // Add food
+    int food = min(5 * level, 25);
+    for (int i = 0; i < food; i++) {
+        int x, y;
+        randomPointInCircle(true, x, y);
+        // we have a valid x,y!
+
+        m_actors.push_back(new Food(x, y, this));
+    }
+
+    // Add dirts
     int dirts =
 #ifdef DEBUG_DIRTS 
         DEBUG_DIRTS;
@@ -32,10 +58,10 @@ int StudentWorld::init()
 #endif
     for (int i = 0; i < dirts; i++) {
         // Get random x,y pos of dirt (in relation to circle origin)
-        int x = randInt(-120, 120);
-        int y = randInt(-1 * sqrt(pow(120, 2) - pow(x, 2)), sqrt(pow(120, 2) - pow(x, 2)));
+        int x, y;
+        randomPointInCircle(true, x, y);
 
-        m_actors.push_back(new Dirt(x + VIEW_WIDTH / 2, y + VIEW_HEIGHT / 2, this));
+        m_actors.push_back(new Dirt(x, y, this));
     }
 
     return GWSTATUS_CONTINUE_GAME;
@@ -43,10 +69,13 @@ int StudentWorld::init()
 
 int StudentWorld::move()
 {
-    auto end = m_actors.end();
+    int size = m_actors.size();
     m_socrates->doSomething();
-    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++) {
+
+    list<Actor*>::iterator it = m_actors.begin();
+    for (int i = 0; i < size; i++) {
         (*it)->doSomething();
+        it++;
     }
 
     for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); ) {
@@ -60,6 +89,16 @@ int StudentWorld::move()
             it++;
         }
     }
+
+    ostringstream ss;
+    ss  << "Score: " << getScore()
+        << "  Level: " << getLevel()
+        << "  Lives: " << getLives()
+        << "  Health: "<< m_socrates->Health()
+        << "  Sprays: " << m_socrates->SpraysRemaining()
+        << "  Flames: " << m_socrates->FlamesRemaining();
+
+    setGameStatText(ss.str());
 
     return GWSTATUS_CONTINUE_GAME;
 }
@@ -93,6 +132,26 @@ void StudentWorld::removeActor(Actor* actor) {
     }
 }
 
+bool StudentWorld::getOverlapObject(int x, int y, Actor*& object, bool (*predicate)(Actor*)) {
+    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++) {
+        if (!(*it)->Alive()) continue;
+        if (!predicate(*it)) continue;
+
+        double otherX = (*it)->getX();
+        double otherY = (*it)->getY();
+
+        cout << "getOverlapObject called\n";
+        cout << "distance: " << euclideanDistance(x, y, otherX, otherY) << endl;
+        if (euclideanDistance(x, y, otherX, otherY) <= SPRITE_RADIUS * 2) {
+            object = *it;
+            cout << "overlap found!\n";
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool StudentWorld::getOverlapObject(const Actor* src, Actor*& object, bool (*predicate)(Actor*)) {
     for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++) {
         if (*it == src) continue;
@@ -101,11 +160,24 @@ bool StudentWorld::getOverlapObject(const Actor* src, Actor*& object, bool (*pre
         double otherX = (*it)->getX();
         double otherY = (*it)->getY();
 
-        if (sqrt(pow(src->getX() - otherX, 2) + pow(src->getY() - otherY, 2)) <= SPRITE_RADIUS * 2) {
+        if (euclideanDistance(src->getX(), src->getY(), otherX, otherY) <= SPRITE_RADIUS * 2) {
             object = *it;
             return true;
         }
     }
 
     return false;
+}
+
+void StudentWorld::randomPointInCircle(bool detectOverlaps, int& x, int& y) {
+    int _x, _y;
+    Actor* obj;
+    do {
+        _x = randInt(-120, 120);
+        _y = randInt(-1 * sqrt(pow(120, 2) - pow(_x, 2)), sqrt(pow(120, 2) - pow(_x, 2)));
+    } while (detectOverlaps &&
+        getOverlapObject(_x + VIEW_WIDTH / 2, _y + VIEW_HEIGHT / 2, obj, [](Actor* a) { return a->blockPlacement(); }));
+
+    x = _x + (VIEW_WIDTH / 2);
+    y = _y + (VIEW_HEIGHT / 2);
 }
