@@ -288,6 +288,6 @@ void StudentWorld::randomPointInCircle(bool detectOverlaps, int& x, int& y) {
 
 void StudentWorld::randomPointAroundCircle(int& x, int& y) {
     int theta = randInt(0, 359);
-    x = VIEW_DIAMETER * cos(theta) + VIEW_WIDTH / 2;
-    y = VIEW_DIAMETER * sin(theta) + VIEW_HEIGHT / 2;
+    x = VIEW_RADIUS * cos(theta) + VIEW_WIDTH / 2;
+    y = VIEW_RADIUS * sin(theta) + VIEW_HEIGHT / 2;
 }

@@ -128,7 +128,7 @@ void Socrates::flame() {
 }
 
 void Socrates::moveAround(int degrees) {
-	double r = VIEW_DIAMETER;
+	double r = VIEW_RADIUS;
 	double xHalf = VIEW_WIDTH / 2;
 	double yHalf = VIEW_HEIGHT / 2;
 	double rad_posAngle;
@@ -331,7 +331,7 @@ bool Salmonella::TryMove() {
 		blocked = true;
 	}
 
-	if (euclideanDistance(x, y, VIEW_WIDTH / 2, VIEW_HEIGHT / 2) >= VIEW_DIAMETER) {
+	if (euclideanDistance(x, y, VIEW_WIDTH / 2, VIEW_HEIGHT / 2) >= VIEW_RADIUS) {
 		blocked = true;
 	}
 
