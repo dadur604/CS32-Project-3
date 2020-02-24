@@ -16,6 +16,8 @@ GameWorld* createStudentWorld(string assetPath)
 StudentWorld::StudentWorld(string assetPath)
 : GameWorld(assetPath)
 {
+    m_pitDone = false;
+    m_aliveBugs = 0;
 }
 
 int StudentWorld::init()
@@ -64,23 +66,41 @@ int StudentWorld::init()
         m_actors.push_back(new Dirt(x, y, this));
     }
 
+    m_pitDone = false;
+    m_aliveBugs = 0;
+
     return GWSTATUS_CONTINUE_GAME;
 }
 
 int StudentWorld::move()
 {
+    // Update Socrates
     int size = m_actors.size();
     m_socrates->doSomething();
 
+    std::cout << "bugcount: " << m_aliveBugs << endl;
+
+    // Update remaining Actors
     list<Actor*>::iterator it = m_actors.begin();
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < size + 1; i++) {
+        if (m_pitDone && m_aliveBugs == 0)
+            return GWSTATUS_FINISHED_LEVEL;
+        if (!m_socrates->Alive()) {
+            return GWSTATUS_PLAYER_DIED;
+            decLives();
+        }
+
+        if (i == size) break;
+
         (*it)->doSomething();
+
         it++;
     }
 
+    // Remove dead actors
     for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); ) {
         if (!(*it)->Alive()) {
-            delete* it;
+            delete *it;
             auto toErase = it;
             it++;
             m_actors.erase(toErase);
@@ -90,6 +110,7 @@ int StudentWorld::move()
         }
     }
 
+    // Update game text
     ostringstream ss;
     ss  << "Score: " << getScore()
         << "  Level: " << getLevel()
@@ -100,14 +121,56 @@ int StudentWorld::move()
 
     setGameStatText(ss.str());
 
+    // Add fungi
+    int chanceFungus = max(510 - getLevel() * 10, 200);
+    if (randInt(0, chanceFungus - 1) == 0) {
+        int x, y;
+        randomPointAroundCircle(x, y);
+
+        int life = max(randInt(0, 300 - 10 * getLevel() - 1), 50);
+
+        Fungus* fungus = new Fungus(x, y, life, this);
+        addActor(fungus);
+    }
+
+    // Add goodies
+    int chanceGoodie = max(510 - getLevel() * 10, 250);
+    if (randInt(0, chanceGoodie - 1) == 0) {
+        int x, y;
+        randomPointAroundCircle(x, y);
+        
+        Pickup* goodie;
+
+        int life = max(randInt(0, 300 - 10 * getLevel() - 1), 50);
+
+        int choice = randInt(0, 9);
+        if (choice < 6) {
+            // HEALTH
+            goodie = new HealthGoodie(x, y, life, this);
+        }
+        else if (choice < 9) {
+            // FLAME
+            goodie = new FlameGoodie(x, y, life, this);
+        }
+        else {
+            // LIFE
+            goodie = new LifeGoodie(x, y, life, this);
+        }
+
+        addActor(goodie);
+    }
+
     return GWSTATUS_CONTINUE_GAME;
 }
 
 void StudentWorld::cleanUp()
 {
     delete m_socrates;
-    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++) {
+    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end();) {
         delete *it;
+        auto toErase = it;
+        it++;
+        m_actors.erase(toErase);
     }
 }
 
@@ -132,7 +195,7 @@ void StudentWorld::removeActor(Actor* actor) {
     }
 }
 
-bool StudentWorld::getOverlapObject(int x, int y, Actor*& object, bool (*predicate)(Actor*)) {
+bool StudentWorld::getOverlapObject(double x, double y, Actor*& object, bool (*predicate)(Actor*), double range) {
     for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++) {
         if (!(*it)->Alive()) continue;
         if (!predicate(*it)) continue;
@@ -140,11 +203,8 @@ bool StudentWorld::getOverlapObject(int x, int y, Actor*& object, bool (*predica
         double otherX = (*it)->getX();
         double otherY = (*it)->getY();
 
-        cout << "getOverlapObject called\n";
-        cout << "distance: " << euclideanDistance(x, y, otherX, otherY) << endl;
-        if (euclideanDistance(x, y, otherX, otherY) <= SPRITE_RADIUS * 2) {
+        if (euclideanDistance(x, y, otherX, otherY) <= range) {
             object = *it;
-            cout << "overlap found!\n";
             return true;
         }
     }
@@ -152,7 +212,7 @@ bool StudentWorld::getOverlapObject(int x, int y, Actor*& object, bool (*predica
     return false;
 }
 
-bool StudentWorld::getOverlapObject(const Actor* src, Actor*& object, bool (*predicate)(Actor*)) {
+bool StudentWorld::getOverlapObject(const Actor* src, Actor*& object, bool (*predicate)(Actor*), double range) {
     for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++) {
         if (*it == src) continue;
         if (!(*it)->Alive()) continue;
@@ -160,13 +220,57 @@ bool StudentWorld::getOverlapObject(const Actor* src, Actor*& object, bool (*pre
         double otherX = (*it)->getX();
         double otherY = (*it)->getY();
 
-        if (euclideanDistance(src->getX(), src->getY(), otherX, otherY) <= SPRITE_RADIUS * 2) {
+        double dist = euclideanDistance(src->getX(), src->getY(), otherX, otherY);
+        if (dist <= range) {
             object = *it;
             return true;
         }
     }
 
     return false;
+}
+
+bool StudentWorld::getClosestObject(const Actor* src, Actor*& object, bool (*predicate)(Actor*), double range) {
+    double closestDist;
+    Actor* closestObj;
+    bool first = true;
+    
+    for (list<Actor*>::iterator it = m_actors.begin(); it != m_actors.end(); it++) {
+        if (*it == src) continue;
+        if (!(*it)->Alive()) continue;
+        if (!predicate(*it)) continue;
+        double otherX = (*it)->getX();
+        double otherY = (*it)->getY();
+
+        double dist = euclideanDistance(src->getX(), src->getY(), otherX, otherY);
+        if (dist > range) continue;
+        if (first) {
+            closestDist = dist;
+            closestObj = *it;
+            first = false;
+        }
+        else {
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestObj = *it;
+            }
+        }
+    }
+
+    if (first) return false; // didn't find any
+
+    object = closestObj;
+    return true;
+}
+
+bool StudentWorld::getOverlapSocrates(double x, double y, Socrates*& socrates, double range) {
+    socrates = m_socrates;
+    return euclideanDistance(m_socrates->getX(), m_socrates->getY(), x, y) <= range;
+}
+
+bool StudentWorld::getOverlapSocrates(const Actor* src, Socrates*& socrates, double range) {
+    socrates = m_socrates;
+    return getOverlapSocrates(src->getX(), src->getY(), socrates, range);
 }
 
 void StudentWorld::randomPointInCircle(bool detectOverlaps, int& x, int& y) {
@@ -180,4 +284,10 @@ void StudentWorld::randomPointInCircle(bool detectOverlaps, int& x, int& y) {
 
     x = _x + (VIEW_WIDTH / 2);
     y = _y + (VIEW_HEIGHT / 2);
+}
+
+void StudentWorld::randomPointAroundCircle(int& x, int& y) {
+    int theta = randInt(0, 359);
+    x = VIEW_DIAMETER * cos(theta) + VIEW_WIDTH / 2;
+    y = VIEW_DIAMETER * sin(theta) + VIEW_HEIGHT / 2;
 }

@@ -201,10 +201,334 @@ Pit::Pit(double startX, double startY, StudentWorld* world)
 	: Actor(IID_PIT, startX, startY, 0, 1, 1, world) {
 	m_regSalmonella = 5;
 	m_aggSalmonella = 3;
-	m_ecoli = 2;
+	m_ecoli = 0;
 	setHealth(1);
 }
 
 void Pit::update() {
-	return;
+	if (m_regSalmonella + m_aggSalmonella + m_ecoli == 0) {
+		getWorld()->pitDone();
+		setHealth(0);
+		return;
+	}
+
+again:
+	if (randInt(1, 50) == 50) {
+		Bacteria* bacterium;
+		int startX = getX();
+		int startY = getY();
+		int choice = randInt(0, 2);
+		std::cout << "choice was " << choice << std::endl;
+		switch (choice) {
+			case 0: // REG SALM
+				if (m_regSalmonella <= 0) goto again;
+				std::cout << "spawning salmonella!" << std::endl;
+				bacterium = new Salmonella(startX, startY, getWorld());
+				m_regSalmonella--;
+				break;
+			case 1: // AGG SALM
+				if (m_aggSalmonella <= 0) goto again;
+				std::cout << "spawning aggresive salmonella!" << std::endl;
+				bacterium = new AggSalmonella(startX, startY, getWorld());
+				m_regSalmonella--;
+				break;
+			case 2: // ECOLI
+				if (m_ecoli <= 0) goto again;
+				std::cout << "spawning ecoli!" << std::endl;
+				bacterium = new EColi(startX, startY, getWorld());
+				m_ecoli--;
+				break;
+		}
+
+		getWorld()->addActor(bacterium);
+		getWorld()->playSound(SOUND_BACTERIUM_BORN);
+	}
+}
+
+// DIRTY DIRTY BUGSSSS //
+
+Bacteria::Bacteria(int imageId, int startX, int startY, StudentWorld* world)
+	: Actor(imageId, startX, startY, 90, 0, 1, world) {
+	m_foodSinceLast = 0;
+	world->updateBugCount(1);
+}
+
+template<typename T>
+void Bacteria::duplicate() {
+	double newX = getX();
+	double newY = getY();
+
+	if (getX() < VIEW_WIDTH / 2)
+		newX += SPRITE_WIDTH / 2;
+	else if (getX() > VIEW_WIDTH / 2)
+		newX -= SPRITE_WIDTH / 2;
+
+	if (getY() < VIEW_HEIGHT / 2)
+		newX += SPRITE_WIDTH / 2;
+	else if (getY() > VIEW_HEIGHT / 2)
+		newX -= SPRITE_WIDTH / 2;
+
+
+	T* child = new T(newX, newY, getWorld());
+	getWorld()->addActor(child);
+}
+
+Salmonella::Salmonella(int startX, int startY, StudentWorld* world)
+	: Bacteria(IID_SALMONELLA, startX, startY, world) {
+	m_movementPlanDistance = 0;
+	setHealth(4);
+}
+
+void Salmonella::update() {
+	if (TryDamage(1)) goto move;
+	if (TryDivide()) goto move;
+	TryEat();
+move:
+	if (TryMove()) return;
+	if (GetFood()) return;
+}
+
+bool Bacteria::TryDamage(int dmg) {
+	Socrates* socrates;
+	if (getWorld()->getOverlapSocrates(this, socrates)) {
+		socrates->updateHealth(-1 * dmg);
+		return true;
+	}
+	else return false;
+}
+
+bool Bacteria::TryDivide() {
+	if (m_foodSinceLast < 3) return false;
+
+	Duplicate();
+
+	m_foodSinceLast = 0;
+
+	return true;
+}
+
+bool Bacteria::TryEat() {
+	Actor* food;
+	if (getWorld()->getOverlapObject(this, food, [](Actor* a) { return a->isFood(); })) {
+		m_foodSinceLast++;
+		food->updateHealth(-1);
+		return true;
+	}
+	return false;
+}
+
+bool Salmonella::TryMove() {
+	if (m_movementPlanDistance <= 0) return false;
+
+	m_movementPlanDistance--;
+
+	bool blocked = false;
+	double x, y;
+	getPositionInThisDirection(getDirection(), 3, x, y);
+
+	Actor* blocker;
+	if (getWorld()->getOverlapObject(x, y, blocker, [](Actor* a) { return a->doesBlock(); }, SPRITE_WIDTH / 2)) {
+		blocked = true;
+	}
+
+	if (euclideanDistance(x, y, VIEW_WIDTH / 2, VIEW_HEIGHT / 2) >= VIEW_DIAMETER) {
+		blocked = true;
+	}
+
+	if (!blocked) {
+		moveTo(x, y);
+	}
+	else {
+		newMovementPlan();
+	}
+
+	return true;
+}
+
+void Salmonella::newMovementPlan() {
+	int dir = randInt(0, 359);
+	setDirection(dir);
+	m_movementPlanDistance = 10;
+}
+
+bool Salmonella::GetFood() {
+	Actor* food;
+	if (!getWorld()->getClosestObject(this, food, [](Actor* a) { return a->isFood(); }, 128)) {
+		// No food found
+		newMovementPlan();
+		return false;
+	}
+
+	// We got food!
+
+	double x, y;
+
+	double dirToFood = dirTowards(getX(), getY(), food->getX(), food->getY());
+
+	getPositionInThisDirection(dirToFood, 3, x, y);
+
+	Actor* blocker;
+	if (getWorld()->getOverlapObject(x, y, blocker, [](Actor* a) { return a->doesBlock(); })) {
+		newMovementPlan();
+		return false;
+	}
+
+	setDirection(dirToFood);
+	moveTo(x, y);
+	return true;
+}
+
+void Bacteria::updateHealth(int health) {
+	Actor::updateHealth(health);
+	if (health < 0) {
+		if (Alive())
+			getWorld()->playSound(getSound("hurt"));
+		else {
+			getWorld()->playSound(getSound("die"));
+			getWorld()->increaseScore(100);
+			getWorld()->updateBugCount(-1);
+			if (randInt(0, 1) == 0) { // 50% chance
+				Actor* food = new Food(getX(), getY(), getWorld());
+				getWorld()->addActor(food);
+			}
+		}
+	}
+}
+
+AggSalmonella::AggSalmonella(int startX, int startY, StudentWorld* world)
+	: Salmonella(startX, startY, world) {
+	setHealth(10);
+}
+
+void AggSalmonella::update() {
+	bool gotSoc = CheckForSocrates();
+	if (TryDamage(2)) goto move;
+	if (TryDivide()) goto move;
+	TryEat();
+move:
+	if (gotSoc) return;
+	if (TryMove()) return;
+	if (GetFood()) return;
+}
+
+bool AggSalmonella::CheckForSocrates() {
+	Socrates* soc;
+	if (!getWorld()->getOverlapSocrates(this, soc, 72)) {
+		return false;
+	}
+
+	double dirToSoc = dirTowards(getX(), getY(), soc->getX(), soc->getY());
+
+	double x, y;
+	getPositionInThisDirection(dirToSoc, 3, x, y);
+
+	setDirection(dirToSoc);
+
+	Actor* blocker;
+	if (!getWorld()->getOverlapObject(x, y, blocker, [](Actor* a) { return a->doesBlock(); }, SPRITE_WIDTH / 2)) {
+		moveTo(x, y);
+	}
+
+	return true;
+}
+
+EColi::EColi(int startX, int startY, StudentWorld* world)
+	: Bacteria(IID_ECOLI, startX, startY, world) {
+	setHealth(5);
+}
+
+void EColi::update() {
+	if (TryDamage(4)) goto move;
+	if (TryDivide()) goto move;
+	TryEat();
+move:
+	CheckForSocrates();
+}
+
+bool EColi::CheckForSocrates() {
+	Socrates* soc;
+	if (!getWorld()->getOverlapSocrates(this, soc, 256)) {
+		return false;
+	}
+	double dirToSoc = dirTowards(getX(), getY(), soc->getX(), soc->getY());
+
+	for (int i = 0; i < 10; i++) {
+		dirToSoc += 10;
+		if (dirToSoc >= 360) dirToSoc -= 360;
+
+		setDirection(dirToSoc);
+
+		double x, y;
+		getPositionInThisDirection(dirToSoc, 2, x, y);
+
+		Actor* blocker;
+		if (!getWorld()->getOverlapObject(x, y, blocker, [](Actor* a) { return a->doesBlock(); }, SPRITE_WIDTH / 2)) {
+			moveTo(x, y);
+			return true;
+		}
+	}
+}
+
+// AMAZING GOODIES!! //
+
+Pickup::Pickup(int imageId, int startX, int startY, int life, StudentWorld* world)
+	: Actor(imageId, startX, startY, 0, 1, 1, world) {
+	setHealth(1);
+	m_lifetime = life;
+	m_elapsedTicks = 0;
+}
+
+void Pickup::update() {
+	Socrates* soc;
+	if (getWorld()->getOverlapSocrates(this, soc)) {
+		if (isGoodie())
+			getWorld()->playSound(SOUND_GOT_GOODIE);
+		setHealth(0);
+		apply(soc);
+		return;
+	}
+	m_elapsedTicks++;
+	if (m_elapsedTicks >= m_lifetime) {
+		setHealth(0);
+	}
+}
+
+Goodie::Goodie(int imageId, int startX, int startY, int life, StudentWorld* world)
+	: Pickup(imageId, startX, startY, life, world) {
+}
+
+HealthGoodie::HealthGoodie(int startX, int startY, int life, StudentWorld* world) 
+	: Goodie(IID_RESTORE_HEALTH_GOODIE, startX, startY, life, world) {
+}
+
+void HealthGoodie::apply(Socrates* socrates) {
+	socrates->updateHealthToMax();
+	getWorld()->increaseScore(250);
+}
+
+FlameGoodie::FlameGoodie(int startX, int startY, int life, StudentWorld* world)
+	: Goodie(IID_FLAME_THROWER_GOODIE, startX, startY, life, world) {
+}
+
+void FlameGoodie::apply(Socrates* socrates) {
+	socrates->addFlames(5);
+	getWorld()->increaseScore(300);
+}
+
+LifeGoodie::LifeGoodie(int startX, int startY, int life, StudentWorld* world)
+	: Goodie(IID_EXTRA_LIFE_GOODIE, startX, startY, life, world) {
+}
+
+void LifeGoodie::apply(Socrates* socrates) {
+	getWorld()->incLives();
+	getWorld()->increaseScore(500);
+}
+
+Fungus::Fungus(int startX, int startY, int life, StudentWorld* world)
+	: Pickup(IID_FUNGUS, startX, startY, life, world) {
+}
+
+void Fungus::apply(Socrates* socrates) {
+	socrates->updateHealth(-20);
+	getWorld()->increaseScore(-50);
 }
