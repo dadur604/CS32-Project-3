@@ -179,7 +179,7 @@ Spray::Spray(double startX, double startY, Direction dir, StudentWorld* world)
 }
 
 bool Spray::isMaxDistance() {
-	if (sqrt(pow(getStartX() - getX(), 2) + pow(getStartY() - getY(), 2)) >= 112) return true;
+	if (euclideanDistance(getStartX(), getStartY(), getX(), getY()) >= 112) return true;
 	return false;
 }
 
@@ -191,7 +191,7 @@ Flame::Flame(double startX, double startY, Direction dir, StudentWorld* world)
 }
 
 bool Flame::isMaxDistance() {
-	if (sqrt(pow(getStartX() - getX(), 2) + pow(getStartY() - getY(), 2)) >= 32) return true;
+	if (euclideanDistance(getStartX(), getStartY(), getX(), getY()) >= 32) return true;
 	return false;
 }
 
