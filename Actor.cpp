@@ -212,11 +212,11 @@ void Pit::update() {
 		return;
 	}
 
-again:
 	if (randInt(1, 50) == 50) {
 		Bacteria* bacterium;
 		int startX = getX();
 		int startY = getY();
+	again:
 		int choice = randInt(0, 2);
 		std::cout << "choice was " << choice << std::endl;
 		switch (choice) {
