@@ -79,8 +79,6 @@ int StudentWorld::move()
     int size = m_actors.size();
     m_socrates->doSomething();
 
-    std::cout << "bugcount: " << m_aliveBugs << endl;
-
     // Update remaining Actors
     list<Actor*>::iterator it = m_actors.begin();
     for (int i = 0; i < size + 1; i++) {
