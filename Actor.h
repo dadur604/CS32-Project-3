@@ -183,6 +183,7 @@ private:
 			return SOUND_SALMONELLA_HURT;
 		else if (type == "die")
 			return SOUND_SALMONELLA_DIE;
+		return 0;
 	}
 
 	int m_movementPlanDistance;
@@ -215,6 +216,7 @@ private:
 			return SOUND_ECOLI_HURT;
 		else if (type == "die")
 			return SOUND_ECOLI_DIE;
+		return 0;
 	}
 };
 

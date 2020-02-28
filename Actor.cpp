@@ -467,6 +467,8 @@ bool EColi::CheckForSocrates() {
 			return true;
 		}
 	}
+
+	return false;
 }
 
 // AMAZING GOODIES!! //
