@@ -218,23 +218,19 @@ void Pit::update() {
 		int startY = getY();
 	again:
 		int choice = randInt(0, 2);
-		std::cout << "choice was " << choice << std::endl;
 		switch (choice) {
 			case 0: // REG SALM
 				if (m_regSalmonella <= 0) goto again;
-				std::cout << "spawning salmonella!" << std::endl;
 				bacterium = new Salmonella(startX, startY, getWorld());
 				m_regSalmonella--;
 				break;
 			case 1: // AGG SALM
 				if (m_aggSalmonella <= 0) goto again;
-				std::cout << "spawning aggresive salmonella!" << std::endl;
 				bacterium = new AggSalmonella(startX, startY, getWorld());
 				m_regSalmonella--;
 				break;
 			case 2: // ECOLI
 				if (m_ecoli <= 0) goto again;
-				std::cout << "spawning ecoli!" << std::endl;
 				bacterium = new EColi(startX, startY, getWorld());
 				m_ecoli--;
 				break;
