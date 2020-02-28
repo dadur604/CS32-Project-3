@@ -4,6 +4,7 @@
 #include "GameConstants.h"
 #include <string>
 #include <sstream>
+#include <iomanip>
 using namespace std;
 
 GameWorld* createStudentWorld(string assetPath)
@@ -86,8 +87,8 @@ int StudentWorld::move()
         if (m_pitDone && m_aliveBugs == 0)
             return GWSTATUS_FINISHED_LEVEL;
         if (!m_socrates->Alive()) {
-            return GWSTATUS_PLAYER_DIED;
             decLives();
+            return GWSTATUS_PLAYER_DIED;
         }
 
         if (i == size) break;
@@ -112,7 +113,7 @@ int StudentWorld::move()
 
     // Update game text
     ostringstream ss;
-    ss  << "Score: " << getScore()
+    ss  << "Score: " << setw(6) << setfill('0') << internal << getScore()
         << "  Level: " << getLevel()
         << "  Lives: " << getLives()
         << "  Health: "<< m_socrates->Health()
